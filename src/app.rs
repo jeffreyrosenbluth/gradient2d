@@ -14,28 +14,31 @@ use wassily::prelude::*;
 #[cfg_attr(feature = "persistence", serde(default))] // if we add new fields, give them default values when deserializing old state
 
 fn wave(color_wave: &Gradient2dApp) -> ColorImage {
-    let mut canvas = Canvas::new(720, 300);
-    let mut coscol = CosColor::default();
+    let mut canvas = Canvas::new(720, 720);
+    let mut coscol = CosColorXY::default();
     coscol.r.a = color_wave.red_a;
     coscol.r.b = color_wave.red_b;
-    coscol.r.freq = color_wave.red_freq;
-    coscol.r.phase = color_wave.red_phase * TAU;
+    coscol.r.freq_x = color_wave.red_freq_x;
+    coscol.r.phase_x = color_wave.red_phase_x * TAU;
+    coscol.r.freq_y = color_wave.red_freq_y;
+    coscol.r.phase_y = color_wave.red_phase_y * TAU;
     coscol.g.a = color_wave.green_a;
     coscol.g.b = color_wave.green_b;
-    coscol.g.freq = color_wave.green_freq;
-    coscol.g.phase = color_wave.green_phase * TAU;
+    coscol.g.freq_x = color_wave.green_freq_x;
+    coscol.g.phase_x = color_wave.green_phase_x * TAU;
+    coscol.g.freq_y = color_wave.green_freq_y;
+    coscol.g.phase_y = color_wave.green_phase_y * TAU;
     coscol.b.a = color_wave.blue_a;
     coscol.b.b = color_wave.blue_b;
-    coscol.b.freq = color_wave.blue_freq;
-    coscol.b.phase = color_wave.blue_phase * TAU;
-    for i in 0..360 {
-        let c = coscol.cos_color(i as f32 / 180.0 * PI);
-        ShapeBuilder::new()
-            .line(pt(2.0 * i as f32, 0), pt(2.0 * i as f32, canvas.h_f32()))
-            .stroke_weight(2.0)
-            .stroke_color(c)
-            .build()
-            .draw(&mut canvas);
+    coscol.b.freq_x = color_wave.blue_freq_x;
+    coscol.b.phase_x = color_wave.blue_phase_x * TAU;
+    coscol.b.freq_y = color_wave.blue_freq_y;
+    coscol.b.phase_y = color_wave.blue_phase_y * TAU;
+    for i in 0..720 {
+        for j in 0..720 {
+            let c = coscol.cos_color_xy(i as f32 / 360.0 * PI, j as f32 / 360.0);
+            canvas.dot(i as f32, j as f32, c);
+        }
     }
     let mut buffer: Vec<Color32> = vec![];
     for p in canvas.pixels() {
@@ -51,16 +54,22 @@ fn wave(color_wave: &Gradient2dApp) -> ColorImage {
 pub struct Gradient2dApp {
     red_a: f32,
     red_b: f32,
-    red_freq: f32,
-    red_phase: f32,
+    red_freq_x: f32,
+    red_phase_x: f32,
+    red_freq_y: f32,
+    red_phase_y: f32,
     green_a: f32,
     green_b: f32,
-    green_freq: f32,
-    green_phase: f32,
+    green_freq_x: f32,
+    green_phase_x: f32,
+    green_freq_y: f32,
+    green_phase_y: f32,
     blue_a: f32,
     blue_b: f32,
-    blue_freq: f32,
-    blue_phase: f32,
+    blue_freq_x: f32,
+    blue_phase_x: f32,
+    blue_freq_y: f32,
+    blue_phase_y: f32,
 }
 
 impl Default for Gradient2dApp {
@@ -68,47 +77,69 @@ impl Default for Gradient2dApp {
         Self {
             red_a: 0.5,
             red_b: 0.5,
-            red_freq: 1.0,
-            red_phase: 0.0,
+            red_freq_x: 1.0,
+            red_phase_x: 0.0,
+            red_freq_y: 1.0,
+            red_phase_y: 0.0,
             green_a: 0.5,
             green_b: 0.5,
-            green_freq: 1.0,
-            green_phase: 0.1,
+            green_freq_x: 1.0,
+            green_phase_x: 0.1,
+            green_freq_y: 1.0,
+            green_phase_y: 0.10,
             blue_a: 0.5,
             blue_b: 0.5,
-            blue_freq: 1.0,
-            blue_phase: 0.2,
+            blue_freq_x: 1.0,
+            blue_phase_x: 0.2,
+            blue_freq_y: 1.0,
+            blue_phase_y: 0.20,
         }
     }
 }
 
 impl Distribution<Gradient2dApp> for Standard {
     fn sample<R: rand::Rng + ?Sized>(&self, rng: &mut R) -> Gradient2dApp {
+        let mut b: f32;
         let red_a = rng.gen_range(0.25..=0.75);
-        let red_b = 1.0 - red_a;
-        let red_freq = rng.gen_range(0.5..=2.0);
-        let red_phase = rng.gen_range(0.0..=0.5);
+        b = 1.0 - red_a;
+        let red_b = rng.gen_range(b / 2.0..=b);
+        let red_freq_x = rng.gen_range(0.5..=2.0);
+        let red_phase_x = rng.gen_range(0.0..=0.5);
+        let red_freq_y = rng.gen_range(0.5..=2.0);
+        let red_phase_y = rng.gen_range(0.0..=0.5);
         let green_a = rng.gen_range(0.25..=0.75);
-        let green_b = 1.0 - green_a;
-        let green_freq = rng.gen_range(0.5..=2.0);
-        let green_phase = rng.gen_range(0.0..=0.5);
+        b = 1.0 - green_a;
+        let green_b = rng.gen_range(b / 2.0..=b);
+        let green_freq_x = rng.gen_range(0.5..=2.0);
+        let green_phase_x = rng.gen_range(0.0..=0.5);
+        let green_freq_y = rng.gen_range(0.5..=2.0);
+        let green_phase_y = rng.gen_range(0.0..=0.5);
         let blue_a = rng.gen_range(0.25..0.75);
-        let blue_b = 1.0 - blue_a;
-        let blue_freq = rng.gen_range(0.5..=2.0);
-        let blue_phase = rng.gen_range(0.0..=0.5);
+        b = 1.0 - blue_a;
+        let blue_b = rng.gen_range(b / 2.0..=b);
+        let blue_freq_x = rng.gen_range(0.5..=2.0);
+        let blue_phase_x = rng.gen_range(0.0..=0.5);
+        let blue_freq_y = rng.gen_range(0.5..=2.0);
+        let blue_phase_y = rng.gen_range(0.0..=0.5);
         Gradient2dApp {
             red_a,
             red_b,
-            red_freq,
-            red_phase,
+            red_freq_x,
+            red_phase_x,
+            red_freq_y,
+            red_phase_y,
             green_a,
             green_b,
-            green_freq,
-            green_phase,
+            green_freq_x,
+            green_phase_x,
+            green_freq_y,
+            green_phase_y,
             blue_a,
             blue_b,
-            blue_freq,
-            blue_phase,
+            blue_freq_x,
+            blue_phase_x,
+            blue_freq_y,
+            blue_phase_y,
         }
     }
 }
@@ -144,32 +175,27 @@ impl epi::App for Gradient2dApp {
         let Self {
             red_a,
             red_b,
-            red_freq,
-            red_phase,
+            red_freq_x,
+            red_phase_x,
+            red_freq_y,
+            red_phase_y,
             green_a,
             green_b,
-            green_freq,
-            green_phase,
+            green_freq_x,
+            green_phase_x,
+            green_freq_y,
+            green_phase_y,
             blue_a,
             blue_b,
-            blue_freq,
-            blue_phase,
+            blue_freq_x,
+            blue_phase_x,
+            blue_freq_y,
+            blue_phase_y,
         } = self;
         frame.set_window_size(eframe::epaint::Vec2 {
-            x: 1000.0,
-            y: 480.0,
+            x: 1040.0,
+            y: 840.0,
         });
-
-        // egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
-        //     // The top panel is often a good place for a menu bar:
-        //     egui::menu::bar(ui, |ui| {
-        //         ui.menu_button("File", |ui| {
-        //             if ui.button("Quit").clicked() {
-        //                 frame.quit();
-        //             }
-        //         });
-        //     });
-        // });
 
         egui::SidePanel::left("side_panel")
             .resizable(false)
@@ -181,36 +207,48 @@ impl epi::App for Gradient2dApp {
                 ui.label(egui::RichText::new("Red").color(Color32::RED));
                 ui.add(egui::Slider::new(red_a, 0.0..=1.0).text("a"));
                 ui.add(egui::Slider::new(red_b, 0.0..=1.0).text("b"));
-                ui.add(egui::Slider::new(red_freq, 0.0..=2.0).text("frequency"));
-                ui.add(egui::Slider::new(red_phase, 0.0..=1.0).text("phase"));
+                ui.add(egui::Slider::new(red_freq_x, 0.0..=2.0).text("x - frequency"));
+                ui.add(egui::Slider::new(red_phase_x, 0.0..=1.0).text("x - phase"));
+                ui.add(egui::Slider::new(red_freq_y, 0.0..=2.0).text("y - frequency"));
+                ui.add(egui::Slider::new(red_phase_y, 0.0..=1.0).text("y - phase"));
                 ui.add_space(20.0);
                 ui.label(egui::RichText::new("Green").color(Color32::GREEN));
                 ui.add(egui::Slider::new(green_a, 0.0..=1.0).text("a"));
                 ui.add(egui::Slider::new(green_b, 0.0..=1.0).text("b"));
-                ui.add(egui::Slider::new(green_freq, 0.0..=2.0).text("frequency"));
-                ui.add(egui::Slider::new(green_phase, 0.0..=1.0).text("phase"));
+                ui.add(egui::Slider::new(green_freq_x, 0.0..=2.0).text("x - frequency"));
+                ui.add(egui::Slider::new(green_phase_x, 0.0..=1.0).text("x - phase"));
+                ui.add(egui::Slider::new(green_freq_y, 0.0..=2.0).text("y - frequency"));
+                ui.add(egui::Slider::new(green_phase_y, 0.0..=1.0).text("y - phase"));
                 ui.add_space(20.0);
                 ui.label(egui::RichText::new("Blue").color(Color32::LIGHT_BLUE));
                 ui.add(egui::Slider::new(blue_a, 0.0..=1.0).text("a"));
                 ui.add(egui::Slider::new(blue_b, 0.0..=1.0).text("b"));
-                ui.add(egui::Slider::new(blue_freq, 0.0..=2.0).text("frequency"));
-                ui.add(egui::Slider::new(blue_phase, 0.0..=1.0).text("phase"));
+                ui.add(egui::Slider::new(blue_freq_x, 0.0..=2.0).text("x - frequency"));
+                ui.add(egui::Slider::new(blue_phase_x, 0.0..=1.0).text("x - phase"));
+                ui.add(egui::Slider::new(blue_freq_y, 0.0..=2.0).text("y - frequency"));
+                ui.add(egui::Slider::new(blue_phase_y, 0.0..=1.0).text("y - phase"));
                 ui.add_space(20.0);
                 ui.horizontal(|ui| {
                     ui.add_space(20.0);
                     if ui.button("Reset").clicked() {
                         *red_a = 0.5;
                         *red_b = 0.5;
-                        *red_freq = 1.0;
-                        *red_phase = 0.0;
+                        *red_freq_x = 1.0;
+                        *red_phase_x = 0.0;
+                        *red_freq_y = 1.0;
+                        *red_phase_y = 0.0;
                         *green_a = 0.5;
                         *green_b = 0.5;
-                        *green_freq = 1.0;
-                        *green_phase = 0.1;
+                        *green_freq_x = 1.0;
+                        *green_phase_x = 0.1;
+                        *green_freq_y = 1.0;
+                        *green_phase_y = 0.1;
                         *blue_a = 0.5;
                         *blue_b = 0.5;
-                        *blue_freq = 1.0;
-                        *blue_phase = 0.2;
+                        *blue_freq_x = 1.0;
+                        *blue_phase_x = 0.2;
+                        *blue_freq_y = 1.0;
+                        *blue_phase_y = 0.2;
                     }
                     ui.add_space(20.0);
                     if ui.button("Random").clicked() {
@@ -218,16 +256,22 @@ impl epi::App for Gradient2dApp {
                         let vals: Gradient2dApp = rng.gen();
                         *red_a = vals.red_a;
                         *red_b = vals.red_b;
-                        *red_freq = vals.red_freq;
-                        *red_phase = vals.red_phase;
+                        *red_freq_x = vals.red_freq_x;
+                        *red_phase_x = vals.red_phase_x;
+                        *red_freq_y = vals.red_freq_y;
+                        *red_phase_y = vals.red_phase_y;
                         *green_a = vals.green_a;
                         *green_b = vals.green_b;
-                        *green_freq = vals.green_freq;
-                        *green_phase = vals.green_phase;
+                        *green_freq_x = vals.green_freq_x;
+                        *green_phase_x = vals.green_phase_x;
+                        *green_freq_y = vals.green_freq_y;
+                        *green_phase_y = vals.green_phase_y;
                         *blue_a = vals.blue_a;
                         *blue_b = vals.blue_b;
-                        *blue_freq = vals.blue_freq;
-                        *blue_phase = vals.blue_phase;
+                        *blue_freq_x = vals.blue_freq_x;
+                        *blue_phase_x = vals.blue_phase_x;
+                        *blue_freq_y = vals.blue_freq_y;
+                        *blue_phase_y = vals.blue_phase_y;
                     }
                 });
             });
@@ -243,7 +287,10 @@ impl epi::App for Gradient2dApp {
             let texture: &egui::TextureHandle =
                 opt_texture.get_or_insert_with(|| ui.ctx().load_texture("wave", wave(self)));
             let img_size = texture.size_vec2();
-            ui.image(texture, img_size);
+            ui.horizontal(|ui| {
+                ui.add_space(20.0);
+                ui.image(texture, img_size)
+            });
         });
     }
 }
