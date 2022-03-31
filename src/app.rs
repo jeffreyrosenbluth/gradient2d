@@ -8,38 +8,58 @@ use rand::{
     Rng,
 };
 use wassily::prelude::*;
+use wassily::prelude::palette::FromColor;
 
 /// We derive Deserialize/Serialize so we can persist app state on shutdown.
 #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "persistence", serde(default))] // if we add new fields, give them default values when deserializing old state
 
-fn wave(color_wave: &Gradient2dApp) -> ColorImage {
-    let mut canvas = Canvas::new(720, 720);
-    let mut coscol = CosColorXY::default();
-    coscol.r.a = color_wave.red_a;
-    coscol.r.b = color_wave.red_b;
-    coscol.r.freq_x = color_wave.red_freq_x;
-    coscol.r.phase_x = color_wave.red_phase_x * TAU;
-    coscol.r.freq_y = color_wave.red_freq_y;
-    coscol.r.phase_y = color_wave.red_phase_y * TAU;
-    coscol.g.a = color_wave.green_a;
-    coscol.g.b = color_wave.green_b;
-    coscol.g.freq_x = color_wave.green_freq_x;
-    coscol.g.phase_x = color_wave.green_phase_x * TAU;
-    coscol.g.freq_y = color_wave.green_freq_y;
-    coscol.g.phase_y = color_wave.green_phase_y * TAU;
-    coscol.b.a = color_wave.blue_a;
-    coscol.b.b = color_wave.blue_b;
-    coscol.b.freq_x = color_wave.blue_freq_x;
-    coscol.b.phase_x = color_wave.blue_phase_x * TAU;
-    coscol.b.freq_y = color_wave.blue_freq_y;
-    coscol.b.phase_y = color_wave.blue_phase_y * TAU;
-    for i in 0..720 {
-        for j in 0..720 {
-            let c = coscol.cos_color_xy(i as f32 / 360.0 * PI, j as f32 / 360.0);
+
+// fn sample_multi(x: f32, rs: Vec<(f32, f32)>) -> f32 {
+//     let n = rs.len();
+//     let y = (x - 0.0001) * n as f32;
+//     let range = rs[y as usize]; 
+//     let z = y % n as f32;
+//     map_range(z, 0.0, 1.0, range.0, range.1)
+// }
+
+fn draw(rorschach: RorschachApp, canvas: &mut Canvas) {
+    let nf_x = Perlin::new(0);
+    let nf_y = Perlin::new(1);
+    let nf_z = Perlin::new(2);
+    let opts_x = NoiseOpts::with_wh(canvas.width(), canvas.height())
+        .scales(rorschach.x_scale)
+        .factor(rorschach.x_factor);
+    let opts_y = NoiseOpts::with_wh(canvas.width(), canvas.height())
+        .scales(rorschach.y_scale)
+        .factor(rorschach.y_factor);
+    let opts_z = NoiseOpts::with_wh(canvas.width(), canvas.height())
+        .scales(rorschach.z_scale)
+        .factor(rorschach.z_factor);
+    for i in 0..canvas.width() {
+        for j in 0..canvas.height() {
+            let k = if rorschach.dim2 { j as f32 } else { rorschach.y_value };
+            let x = noise2d_01(&nf_x, &opts_x, i as f32, k).clamp(0.0, 1.0);
+            let y = noise2d_01(&nf_y, &opts_y, i as f32, k).clamp(0.0, 1.0);
+            let z = noise2d_01(&nf_z, &opts_z, i as f32, k).clamp(0.0, 1.0);
+            let k = palette::Xyz::new(x, y, z);
+            let k = palette::Srgba::from_color(k);
+            let rgba = k.into_components();
+            let c = Color::from_rgba(rgba.0, rgba.1, rgba.2, 1.0).unwrap().rotate_hue(rorschach.hue_angle);
             canvas.dot(i as f32, j as f32, c);
         }
     }
+}
+
+fn print(rorschach: RorschachApp) {
+    let mut canvas = Canvas::new(1080, 1080);
+    draw(rorschach, &mut canvas);
+    canvas.save_png("./output/rorschach.png");
+}
+
+fn generate(rorschach: RorschachApp) -> ColorImage {
+    let mut canvas = Canvas::new(360, 360);
+    draw(rorschach, &mut canvas);
     let mut buffer: Vec<Color32> = vec![];
     for p in canvas.pixels() {
         buffer.push(Color32::from_rgba_unmultiplied(
@@ -51,100 +71,62 @@ fn wave(color_wave: &Gradient2dApp) -> ColorImage {
     }
     ColorImage::from_rgba_unmultiplied([canvas.w_usize(), canvas.h_usize()], canvas.data())
 }
-pub struct Gradient2dApp {
-    red_a: f32,
-    red_b: f32,
-    red_freq_x: f32,
-    red_phase_x: f32,
-    red_freq_y: f32,
-    red_phase_y: f32,
-    green_a: f32,
-    green_b: f32,
-    green_freq_x: f32,
-    green_phase_x: f32,
-    green_freq_y: f32,
-    green_phase_y: f32,
-    blue_a: f32,
-    blue_b: f32,
-    blue_freq_x: f32,
-    blue_phase_x: f32,
-    blue_freq_y: f32,
-    blue_phase_y: f32,
+
+#[derive(Clone, Copy)]
+pub struct RorschachApp {
+    hue_angle: f32,
+    x_scale: f32,
+    x_factor: f32,
+    y_scale: f32,
+    y_factor: f32,
+    z_scale: f32,
+    z_factor: f32,
+    dim2: bool,
+    y_value: f32,
 }
 
-impl Default for Gradient2dApp {
+impl Default for RorschachApp {
     fn default() -> Self {
         Self {
-            red_a: 0.5,
-            red_b: 0.5,
-            red_freq_x: 1.0,
-            red_phase_x: 0.0,
-            red_freq_y: 1.0,
-            red_phase_y: 0.0,
-            green_a: 0.5,
-            green_b: 0.5,
-            green_freq_x: 1.0,
-            green_phase_x: 0.1,
-            green_freq_y: 1.0,
-            green_phase_y: 0.10,
-            blue_a: 0.5,
-            blue_b: 0.5,
-            blue_freq_x: 1.0,
-            blue_phase_x: 0.2,
-            blue_freq_y: 1.0,
-            blue_phase_y: 0.20,
+            hue_angle: 0.0,
+            x_scale: 4.0,
+            x_factor: 1.0,
+            y_scale: 4.0,
+            y_factor: 1.0,
+            z_scale: 4.0,
+            z_factor: 1.0,
+            dim2: true,
+            y_value: 0.0,
         }
     }
 }
 
-impl Distribution<Gradient2dApp> for Standard {
-    fn sample<R: rand::Rng + ?Sized>(&self, rng: &mut R) -> Gradient2dApp {
-        let mut b: f32;
-        let red_a = rng.gen_range(0.25..=0.75);
-        b = 1.0 - red_a;
-        let red_b = rng.gen_range(b / 2.0..=b);
-        let red_freq_x = rng.gen_range(0.5..=2.0);
-        let red_phase_x = rng.gen_range(0.0..=0.5);
-        let red_freq_y = rng.gen_range(0.5..=2.0);
-        let red_phase_y = rng.gen_range(0.0..=0.5);
-        let green_a = rng.gen_range(0.25..=0.75);
-        b = 1.0 - green_a;
-        let green_b = rng.gen_range(b / 2.0..=b);
-        let green_freq_x = rng.gen_range(0.5..=2.0);
-        let green_phase_x = rng.gen_range(0.0..=0.5);
-        let green_freq_y = rng.gen_range(0.5..=2.0);
-        let green_phase_y = rng.gen_range(0.0..=0.5);
-        let blue_a = rng.gen_range(0.25..0.75);
-        b = 1.0 - blue_a;
-        let blue_b = rng.gen_range(b / 2.0..=b);
-        let blue_freq_x = rng.gen_range(0.5..=2.0);
-        let blue_phase_x = rng.gen_range(0.0..=0.5);
-        let blue_freq_y = rng.gen_range(0.5..=2.0);
-        let blue_phase_y = rng.gen_range(0.0..=0.5);
-        Gradient2dApp {
-            red_a,
-            red_b,
-            red_freq_x,
-            red_phase_x,
-            red_freq_y,
-            red_phase_y,
-            green_a,
-            green_b,
-            green_freq_x,
-            green_phase_x,
-            green_freq_y,
-            green_phase_y,
-            blue_a,
-            blue_b,
-            blue_freq_x,
-            blue_phase_x,
-            blue_freq_y,
-            blue_phase_y,
+impl Distribution<RorschachApp> for Standard {
+    fn sample<R: rand::Rng + ?Sized>(&self, rng: &mut R) -> RorschachApp {
+        let x_scale = rng.gen_range(0.5..=10.0);
+        let x_factor = rng.gen_range(0.1..=5.0);
+        let y_scale = rng.gen_range(0.5..=10.0);
+        let y_factor = rng.gen_range(0.1..=5.0);
+        let z_scale = rng.gen_range(0.5..10.0);
+        let z_factor = rng.gen_range(0.1..=5.0);
+        let hue_angle: f32 = rng.gen_range(0.0..360.0);
+        let dim2 = rng.gen_bool(0.5);
+        let y_value: f32 = rng.gen_range(0.0..360.0);
+        RorschachApp {
+            hue_angle,
+            x_scale,
+            x_factor,
+            y_scale,
+            y_factor,
+            z_scale,
+            z_factor,
+            dim2,
+            y_value,
         }
     }
 }
 
-impl epi::App for Gradient2dApp {
+impl epi::App for RorschachApp {
     fn name(&self) -> &str {
         "Procedural Color Generator"
     }
@@ -172,25 +154,17 @@ impl epi::App for Gradient2dApp {
     }
 
     fn update(&mut self, ctx: &egui::Context, frame: &epi::Frame) {
+        let rorschach = self.clone();
         let Self {
-            red_a,
-            red_b,
-            red_freq_x,
-            red_phase_x,
-            red_freq_y,
-            red_phase_y,
-            green_a,
-            green_b,
-            green_freq_x,
-            green_phase_x,
-            green_freq_y,
-            green_phase_y,
-            blue_a,
-            blue_b,
-            blue_freq_x,
-            blue_phase_x,
-            blue_freq_y,
-            blue_phase_y,
+            hue_angle,
+            x_scale,
+            x_factor,
+            y_scale,
+            y_factor,
+            z_scale,
+            z_factor,
+            dim2,
+            y_value,
         } = self;
         frame.set_window_size(eframe::epaint::Vec2 {
             x: 1040.0,
@@ -204,76 +178,100 @@ impl epi::App for Gradient2dApp {
                 ui.add_space(10.0);
                 ui.heading("Controls");
                 ui.add_space(20.0);
-                ui.label(egui::RichText::new("Red").color(Color32::RED));
-                ui.add(egui::Slider::new(red_a, 0.0..=1.0).text("a"));
-                ui.add(egui::Slider::new(red_b, 0.0..=1.0).text("b"));
-                ui.add(egui::Slider::new(red_freq_x, 0.0..=2.0).text("x - frequency"));
-                ui.add(egui::Slider::new(red_phase_x, 0.0..=1.0).text("x - phase"));
-                ui.add(egui::Slider::new(red_freq_y, 0.0..=2.0).text("y - frequency"));
-                ui.add(egui::Slider::new(red_phase_y, 0.0..=1.0).text("y - phase"));
+                ui.add(
+                    egui::Slider::new(hue_angle, 0.0..=360.0)
+                        .text("hue angle")
+                        .fixed_decimals(2),
+                );
                 ui.add_space(20.0);
-                ui.label(egui::RichText::new("Green").color(Color32::GREEN));
-                ui.add(egui::Slider::new(green_a, 0.0..=1.0).text("a"));
-                ui.add(egui::Slider::new(green_b, 0.0..=1.0).text("b"));
-                ui.add(egui::Slider::new(green_freq_x, 0.0..=2.0).text("x - frequency"));
-                ui.add(egui::Slider::new(green_phase_x, 0.0..=1.0).text("x - phase"));
-                ui.add(egui::Slider::new(green_freq_y, 0.0..=2.0).text("y - frequency"));
-                ui.add(egui::Slider::new(green_phase_y, 0.0..=1.0).text("y - phase"));
+                ui.label(
+                    egui::RichText::new("X")
+                        .size(18.0),
+                );
+                ui.separator();
+                ui.add(
+                    egui::Slider::new(x_scale, 0.5..=25.0)
+                        .text("scale")
+                        .fixed_decimals(2),
+                );
+                ui.add(
+                    egui::Slider::new(x_factor, 0.1..=10.0)
+                        .text("factor")
+                        .fixed_decimals(2),
+                );
+                ui.separator();
                 ui.add_space(20.0);
-                ui.label(egui::RichText::new("Blue").color(Color32::LIGHT_BLUE));
-                ui.add(egui::Slider::new(blue_a, 0.0..=1.0).text("a"));
-                ui.add(egui::Slider::new(blue_b, 0.0..=1.0).text("b"));
-                ui.add(egui::Slider::new(blue_freq_x, 0.0..=2.0).text("x - frequency"));
-                ui.add(egui::Slider::new(blue_phase_x, 0.0..=1.0).text("x - phase"));
-                ui.add(egui::Slider::new(blue_freq_y, 0.0..=2.0).text("y - frequency"));
-                ui.add(egui::Slider::new(blue_phase_y, 0.0..=1.0).text("y - phase"));
+                ui.label(
+                    egui::RichText::new("Y")
+                        .size(18.0),
+                );
+                ui.separator();
+                ui.add(
+                    egui::Slider::new(y_scale, 0.5..=25.0)
+                        .text("scale")
+                        .fixed_decimals(2),
+                );
+                ui.add(
+                    egui::Slider::new(y_factor, 0.1..=10.0)
+                        .text("factor")
+                        .fixed_decimals(2),
+                );
+                ui.separator();
+                ui.add_space(20.0);
+                ui.label(
+                    egui::RichText::new("Z")
+                        .size(18.0),
+                );
+                ui.separator();
+                ui.add(
+                    egui::Slider::new(z_scale, 0.5..=25.0)
+                        .text("scale")
+                        .fixed_decimals(2),
+                );
+                ui.add(
+                    egui::Slider::new(z_factor, 0.1..=10.0)
+                        .text("factor")
+                        .fixed_decimals(2),
+                );
+                ui.separator();
                 ui.add_space(20.0);
                 ui.horizontal(|ui| {
-                    ui.add_space(20.0);
+                    ui.add_space(60.0);
                     if ui.button("Reset").clicked() {
-                        *red_a = 0.5;
-                        *red_b = 0.5;
-                        *red_freq_x = 1.0;
-                        *red_phase_x = 0.0;
-                        *red_freq_y = 1.0;
-                        *red_phase_y = 0.0;
-                        *green_a = 0.5;
-                        *green_b = 0.5;
-                        *green_freq_x = 1.0;
-                        *green_phase_x = 0.1;
-                        *green_freq_y = 1.0;
-                        *green_phase_y = 0.1;
-                        *blue_a = 0.5;
-                        *blue_b = 0.5;
-                        *blue_freq_x = 1.0;
-                        *blue_phase_x = 0.2;
-                        *blue_freq_y = 1.0;
-                        *blue_phase_y = 0.2;
+                        *x_scale = 4.0;
+                        *x_factor = 1.0;
+                        *y_scale = 4.0;
+                        *y_factor = 1.0;
+                        *z_scale = 4.0;
+                        *z_factor = 1.0;
                     }
                     ui.add_space(20.0);
                     if ui.button("Random").clicked() {
                         let mut rng = rand::thread_rng();
-                        let vals: Gradient2dApp = rng.gen();
-                        *red_a = vals.red_a;
-                        *red_b = vals.red_b;
-                        *red_freq_x = vals.red_freq_x;
-                        *red_phase_x = vals.red_phase_x;
-                        *red_freq_y = vals.red_freq_y;
-                        *red_phase_y = vals.red_phase_y;
-                        *green_a = vals.green_a;
-                        *green_b = vals.green_b;
-                        *green_freq_x = vals.green_freq_x;
-                        *green_phase_x = vals.green_phase_x;
-                        *green_freq_y = vals.green_freq_y;
-                        *green_phase_y = vals.green_phase_y;
-                        *blue_a = vals.blue_a;
-                        *blue_b = vals.blue_b;
-                        *blue_freq_x = vals.blue_freq_x;
-                        *blue_phase_x = vals.blue_phase_x;
-                        *blue_freq_y = vals.blue_freq_y;
-                        *blue_phase_y = vals.blue_phase_y;
+                        let vals: RorschachApp = rng.gen();
+                        *hue_angle = vals.hue_angle;
+                        *x_scale = vals.x_scale;
+                        *x_factor = vals.x_factor;
+                        *y_scale = vals.y_scale;
+                        *y_factor = vals.y_factor;
+                        *z_scale = vals.z_scale;
+                        *z_factor = vals.z_factor;
                     }
                 });
+                ui.add_space(20.0);
+                ui.horizontal(|ui| {
+                    ui.add_space(20.0);
+                    ui.radio_value(dim2, true, "2 Dimensions");
+                    ui.radio_value(dim2, false, "1 Dimension");
+                });
+                if !*dim2 {
+                    ui.add_space(10.0);
+                    ui.add(egui::Slider::new(y_value, 0.0..=360.0).text("y value").fixed_decimals(0));
+                }
+                ui.add_space(20.0);
+                if ui.button("Save").clicked() {
+                    print(rorschach);
+                }
             });
 
         egui::CentralPanel::default().show(ctx, |ui| {
@@ -285,8 +283,8 @@ impl epi::App for Gradient2dApp {
 
             let mut opt_texture: Option<egui::TextureHandle> = None;
             let texture: &egui::TextureHandle =
-                opt_texture.get_or_insert_with(|| ui.ctx().load_texture("wave", wave(self)));
-            let img_size = texture.size_vec2();
+                opt_texture.get_or_insert_with(|| ui.ctx().load_texture("wave", generate(rorschach)));
+            let img_size = 2.0 * texture.size_vec2();
             ui.horizontal(|ui| {
                 ui.add_space(20.0);
                 ui.image(texture, img_size)

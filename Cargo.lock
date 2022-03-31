@@ -1124,19 +1124,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "gradient2d"
-version = "0.1.0"
-dependencies = [
- "console_error_panic_hook",
- "eframe",
- "rand 0.8.5",
- "rand_distr",
- "serde",
- "tracing-wasm",
- "wassily",
-]
-
-[[package]]
 name = "half"
 version = "1.8.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2138,6 +2125,19 @@ dependencies = [
  "base64",
  "bitflags",
  "serde",
+]
+
+[[package]]
+name = "rorschach"
+version = "0.1.0"
+dependencies = [
+ "console_error_panic_hook",
+ "eframe",
+ "rand 0.8.5",
+ "rand_distr",
+ "serde",
+ "tracing-wasm",
+ "wassily",
 ]
 
 [[package]]

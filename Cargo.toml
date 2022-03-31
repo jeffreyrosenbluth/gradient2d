@@ -1,5 +1,5 @@
 [package]
-name = "gradient2d"
+name = "rorschach"
 version = "0.1.0"
 authors = ["Jeffrey Rosenbluth"]
 edition = "2021"
