@@ -24,7 +24,7 @@ use wassily::prelude::palette::FromColor;
 // }
 
 fn draw(rorschach: RorschachApp, canvas: &mut Canvas) {
-    let nf_x = Perlin::new(0);
+    let nf_x = Cylinders::new();
     let nf_y = Perlin::new(1);
     let nf_z = Perlin::new(2);
     let opts_x = NoiseOpts::with_wh(canvas.width(), canvas.height())
