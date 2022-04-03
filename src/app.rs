@@ -14,19 +14,10 @@ use wassily::prelude::palette::FromColor;
 #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "persistence", serde(default))] // if we add new fields, give them default values when deserializing old state
 
-
-// fn sample_multi(x: f32, rs: Vec<(f32, f32)>) -> f32 {
-//     let n = rs.len();
-//     let y = (x - 0.0001) * n as f32;
-//     let range = rs[y as usize]; 
-//     let z = y % n as f32;
-//     map_range(z, 0.0, 1.0, range.0, range.1)
-// }
-
 fn draw(rorschach: RorschachApp, canvas: &mut Canvas) {
-    let nf_x = Cylinders::new();
-    let nf_y = Perlin::new(1);
-    let nf_z = Perlin::new(2);
+    let nf_x = RidgedMulti::<Perlin>::new(0);
+    let nf_y = RidgedMulti::<Perlin>::new(1);
+    let nf_z = RidgedMulti::<Perlin>::new(2);
     let opts_x = NoiseOpts::with_wh(canvas.width(), canvas.height())
         .scales(rorschach.x_scale)
         .factor(rorschach.x_factor);
@@ -88,13 +79,13 @@ pub struct RorschachApp {
 impl Default for RorschachApp {
     fn default() -> Self {
         Self {
-            hue_angle: 0.0,
-            x_scale: 4.0,
+            hue_angle: 70.0,
+            x_scale: 3.0,
             x_factor: 1.0,
             y_scale: 4.0,
-            y_factor: 1.0,
-            z_scale: 4.0,
-            z_factor: 1.0,
+            y_factor: 2.0,
+            z_scale: 5.0,
+            z_factor: 3.0,
             dim2: true,
             y_value: 0.0,
         }
@@ -238,12 +229,13 @@ impl epi::App for RorschachApp {
                 ui.horizontal(|ui| {
                     ui.add_space(60.0);
                     if ui.button("Reset").clicked() {
-                        *x_scale = 4.0;
-                        *x_factor = 1.0;
-                        *y_scale = 4.0;
-                        *y_factor = 1.0;
-                        *z_scale = 4.0;
-                        *z_factor = 1.0;
+                        let ror = RorschachApp::default();
+                        *x_scale = ror.x_scale;
+                        *x_factor = ror.x_factor;
+                        *y_scale = ror.y_scale;
+                        *y_factor = ror.y_factor;
+                        *z_scale = ror.z_scale;
+                        *z_factor = ror.z_factor;
                     }
                     ui.add_space(20.0);
                     if ui.button("Random").clicked() {
