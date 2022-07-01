@@ -12,7 +12,7 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 eframe = "0.17.0" # Gives us egui, epi and web+native backends
-wassily = { path = "/Users/jeffreyrosenbluth/Rust/wassily" }
+wassily = { path = "/Users/jeffreyrosenbluth/Develop/wassily" }
 rand_distr = "0.4"
 rand = "0.8"
 
